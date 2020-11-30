@@ -1,0 +1,20 @@
+[package]
+name = "openmm"
+version = "0.1.0"
+authors = ["Josh Mitchell <yoshanuikabundi@gmail.com>"]
+edition = "2018"
+repository = "https://github.com/yoshanuikabundi/openmm"
+license = "MIT"
+readme = "README.md"
+description = "Rust bindings for OpenMM" # Description that appears in crates.io
+keywords = [] # Keywords for discoverability. crates.io accepts a maximum of 5 keywords fitting the regex /[a-Z][a-Z0-9\-_]{0,19}/
+categories = [] # Categories for discoverability. crates.io accepts a maximum of 5 categories from the list at https://crates.io/category_slugs
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+
+[build-dependencies]
+cmake = "0.1"
+bindgen = "0.56"
