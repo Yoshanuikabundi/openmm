@@ -10,9 +10,7 @@ mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-pub mod sys {
-    pub use crate::bindings::root::OpenMM::*;
-}
+pub use crate::bindings::root::OpenMM::*;
 
 #[cfg(test)]
 mod tests {

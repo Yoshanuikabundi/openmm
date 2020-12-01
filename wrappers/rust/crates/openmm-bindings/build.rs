@@ -4,11 +4,10 @@ use std::path::PathBuf;
 use bindgen;
 use cmake::Config;
 
-static HEADER: &str = "../../openmmapi/include/OpenMM.h";
-// static HEADER: &str = "wrapper.hpp";
+static HEADER: &str = "external/openmmapi/include/OpenMM.h";
 
 fn cmake_and_build() -> PathBuf {
-    Config::new("../../")
+    Config::new("external")
         .define("OPENMM_BUILD_PYTHON_WRAPPERS", "OFF")
         .define("OPENMM_BUILD_STATIC_LIB", "OFF")
         .define("OPENMM_BUILD_SHARED_LIB", "ON")
@@ -27,23 +26,21 @@ fn do_bindgen() {
     let bindings = bindgen::Builder::default()
         .clang_arg("-xc++")
         .clang_arg("-std=gnu++11")
-        .clang_arg("-I../../src")
-        .clang_arg("-I../../libraries/asmjit")
-        .clang_arg("-I../../libraries/vecmath/include")
-        .clang_arg("-I../../libraries/irrxml/include")
-        .clang_arg("-I../../serialization/include")
-        .clang_arg("-I../../platforms/reference/include")
-        .clang_arg("-I../../libraries/csha1/include")
-        .clang_arg("-I../../libraries/hilbert/include")
-        .clang_arg("-I../../libraries/lbfgs/include")
-        .clang_arg("-I../../libraries/sfmt/include")
-        .clang_arg("-I../../libraries/lepton/include")
-        .clang_arg("-I../../libraries/quern/include")
-        .clang_arg("-I../../libraries/jama/include")
-        .clang_arg("-I../../olla/include")
-        .clang_arg("-I../../openmmapi/include")
-        .clang_arg("-I../../include")
-        .clang_arg("-I../../tests")
+        .clang_arg("-Iexternal/libraries/asmjit")
+        .clang_arg("-Iexternal/libraries/vecmath/include")
+        .clang_arg("-Iexternal/libraries/irrxml/include")
+        .clang_arg("-Iexternal/serialization/include")
+        .clang_arg("-Iexternal/platforms/reference/include")
+        .clang_arg("-Iexternal/libraries/csha1/include")
+        .clang_arg("-Iexternal/libraries/hilbert/include")
+        .clang_arg("-Iexternal/libraries/lbfgs/include")
+        .clang_arg("-Iexternal/libraries/sfmt/include")
+        .clang_arg("-Iexternal/libraries/lepton/include")
+        .clang_arg("-Iexternal/libraries/quern/include")
+        .clang_arg("-Iexternal/libraries/jama/include")
+        .clang_arg("-Iexternal/olla/include")
+        .clang_arg("-Iexternal/openmmapi/include")
+        .clang_arg("-Iexternal/tests")
         .enable_cxx_namespaces()
         .rustfmt_bindings(true)
         .default_enum_style(bindgen::EnumVariation::ModuleConsts)
