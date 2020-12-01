@@ -11,13 +11,3 @@ mod bindings {
 }
 
 pub use crate::bindings::root::OpenMM::*;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn name() {
-        assert_eq!(1 + 1, 2);
-    }
-}

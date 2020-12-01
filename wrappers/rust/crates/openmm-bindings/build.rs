@@ -6,18 +6,15 @@ use cmake::Config;
 
 static HEADER: &str = "external/openmmapi/include/OpenMM.h";
 
-fn cmake_and_build() -> PathBuf {
-    Config::new("external")
+fn cmake_and_build() {
+    let path = Config::new("external")
         .define("OPENMM_BUILD_PYTHON_WRAPPERS", "OFF")
         .define("OPENMM_BUILD_STATIC_LIB", "OFF")
         .define("OPENMM_BUILD_SHARED_LIB", "ON")
-        .build()
-}
+        .build();
 
-fn link(build_path: PathBuf) {
-    println!("cargo:rustc-link-search=native={}", build_path.display());
+    println!("cargo:rustc-link-search=native={}/lib", path.display());
     println!("cargo:rustc-link-lib=dylib=OpenMM");
-    // println!("cargo:rustc-link-lib=static=OpenMM_static");
 }
 
 fn do_bindgen() {
@@ -61,9 +58,7 @@ fn do_bindgen() {
 }
 
 fn main() {
-    let build_path = cmake_and_build();
+    cmake_and_build();
 
     do_bindgen();
-
-    link(build_path);
 }
