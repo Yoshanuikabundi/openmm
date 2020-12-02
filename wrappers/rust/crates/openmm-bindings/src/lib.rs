@@ -1,4 +1,18 @@
-//! This project has not been documented yet
+//! Unsafe Rust bindings to the C++ OpenMM library
+//!
+//! # bindgen
+//!
+//! Bindings are generated automatically by the [bindgen](https://crates.io/crates/bindgen) crate
+//! when the crate is built.
+//!
+//! ## Notes
+//! - The `-fkeep-inline-functions` flag is passed the the C++ compiler so that inline functions
+//! can be used by Rust code. This may cause performance problems — we'll have to see.
+//! - The `improper_ctypes` lint is disabled, as several functions return opaque hidden types that
+//! appear to Rust as arrays.
+
+// use cxx::{type_id, ExternType};
+
 mod bindings {
     #![allow(
         non_upper_case_globals,
@@ -12,3 +26,18 @@ mod bindings {
 }
 
 pub use crate::bindings::root::OpenMM::*;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_linked() {
+        unsafe {
+            let mut sys = System::new();
+            let idx = sys.addParticle(1.008);
+            assert_eq!(1.008, sys.getParticleMass(idx));
+            sys.destruct();
+        }
+    }
+}

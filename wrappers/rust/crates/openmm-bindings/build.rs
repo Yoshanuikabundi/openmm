@@ -12,6 +12,8 @@ fn cmake_and_build() -> PathBuf {
         .define("OPENMM_BUILD_SHARED_LIB", "ON")
         .build();
 
+    println!("cargo:include={}/include", path.display());
+    println!("cargo:lib={}/lib", path.display());
     println!("cargo:rustc-link-search=native={}/lib", path.display());
     println!("cargo:rustc-link-lib=dylib=OpenMM");
 
@@ -42,9 +44,12 @@ fn do_bindgen(include: PathBuf) {
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bindings_path = out_path.join("bindings.rs");
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(&bindings_path)
         .expect("Couldn't write bindings!");
+
+    println!("cargo:bindings={}", bindings_path.display());
 }
 
 fn main() {
