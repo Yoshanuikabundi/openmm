@@ -13,19 +13,37 @@
 
 // use cxx::{type_id, ExternType};
 
-mod bindings {
-    #![allow(
-        non_upper_case_globals,
-        non_camel_case_types,
-        non_snake_case,
-        dead_code,
-        improper_ctypes
-    )]
+pub mod c_bindings {
+    mod bindings {
+        #![allow(
+            non_upper_case_globals,
+            non_camel_case_types,
+            non_snake_case,
+            dead_code,
+            improper_ctypes
+        )]
 
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+        include!(concat!(env!("OUT_DIR"), "/c_bindings.rs"));
+    }
+
+    pub use bindings::root::*;
 }
 
-pub use crate::bindings::root::OpenMM::*;
+pub mod cpp_bindings {
+    mod bindings {
+        #![allow(
+            non_upper_case_globals,
+            non_camel_case_types,
+            non_snake_case,
+            dead_code,
+            improper_ctypes
+        )]
+
+        include!(concat!(env!("OUT_DIR"), "/cpp_bindings.rs"));
+    }
+
+    pub use bindings::root::OpenMM::*;
+}
 
 #[cfg(test)]
 mod tests {

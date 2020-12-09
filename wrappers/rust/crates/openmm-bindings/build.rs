@@ -6,8 +6,9 @@ use cmake::Config;
 
 fn cmake_and_build() -> PathBuf {
     let path = Config::new("external")
+        .cxxflag("-fkeep-inline-functions")
         .define("OPENMM_BUILD_PYTHON_WRAPPERS", "OFF")
-        .define("OPENMM_BUILD_C_AND_FORTRAN_WRAPPERS", "OFF")
+        .define("OPENMM_BUILD_C_AND_FORTRAN_WRAPPERS", "ON")
         .define("OPENMM_BUILD_STATIC_LIB", "OFF")
         .define("OPENMM_BUILD_SHARED_LIB", "ON")
         .build();
@@ -20,7 +21,7 @@ fn cmake_and_build() -> PathBuf {
     return path;
 }
 
-fn do_bindgen(include: PathBuf) {
+fn do_cpp_bindgen(include: PathBuf) {
     let header = include.join("OpenMM.h").display().to_string();
 
     println!("cargo:rerun-if-changed={}", header);
@@ -33,6 +34,7 @@ fn do_bindgen(include: PathBuf) {
         .rustfmt_bindings(true)
         .default_enum_style(bindgen::EnumVariation::ModuleConsts)
         .array_pointers_in_arguments(true)
+        .generate_inline_functions(true)
         .whitelist_function("OpenMM::.*")
         .whitelist_var("OpenMM::.*")
         .whitelist_type("OpenMM::.*")
@@ -40,19 +42,46 @@ fn do_bindgen(include: PathBuf) {
         .header(header)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
-        .expect("Unable to generate bindings");
+        .expect("Unable to generate C++ bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let bindings_path = out_path.join("bindings.rs");
+    let bindings_path = out_path.join("cpp_bindings.rs");
     bindings
         .write_to_file(&bindings_path)
-        .expect("Couldn't write bindings!");
+        .expect("Couldn't write C++ bindings!");
 
-    println!("cargo:bindings={}", bindings_path.display());
+    println!("cargo:cpp_bindings={}", bindings_path.display());
+}
+
+fn do_c_bindgen(include: PathBuf) {
+    let header = include.join("OpenMMCWrapper.h").display().to_string();
+
+    println!("cargo:rerun-if-changed={}", header);
+
+    let bindings = bindgen::Builder::default()
+        .clang_arg(format!("-I{}", include.display()))
+        .enable_cxx_namespaces()
+        .rustfmt_bindings(true)
+        .default_enum_style(bindgen::EnumVariation::ModuleConsts)
+        .array_pointers_in_arguments(true)
+        .header(header)
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .generate()
+        .expect("Unable to generate C bindings");
+
+    // Write the bindings to the $OUT_DIR/bindings.rs file.
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bindings_path = out_path.join("c_bindings.rs");
+    bindings
+        .write_to_file(&bindings_path)
+        .expect("Couldn't write C bindings!");
+
+    println!("cargo:c_bindings={}", bindings_path.display());
 }
 
 fn main() {
     let path = cmake_and_build();
-    do_bindgen(path.join("include"));
+    do_cpp_bindgen(path.join("include"));
+    do_c_bindgen(path.join("include"));
 }
