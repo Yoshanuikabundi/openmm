@@ -80,8 +80,18 @@ fn do_c_bindgen(include: PathBuf) {
     println!("cargo:c_bindings={}", bindings_path.display());
 }
 
+// fn build_cxx() {
+//     cxx_build::bridge("src/lib.rs")
+//         .flag_if_supported("-xc++")
+//         .flag_if_supported("-std=gnu++11")
+//         .compile("OpenMM-bindings");
+       
+//     println!("cargo:rerun-if-changed=external/openmmapi/include/OpenMM.h");
+// }
+
 fn main() {
     let path = cmake_and_build();
     do_cpp_bindgen(path.join("include"));
     do_c_bindgen(path.join("include"));
+    // build_cxx()
 }

@@ -1,15 +1,7 @@
 #[allow(unused_imports)]
 use crate::preface::*;
-use openmm_bindings as openmm;
+use openmm_bindings::c_bindings as openmm;
 use std::os::raw::c_int;
-
-mod private {
-    /// Sealed trait for forces. May be removed in the future if we get to the point that new forces
-    /// can be defined entirely in Rust
-    pub trait Sealed {}
-
-    impl Sealed for super::nonbonded::NonbondedForce {}
-}
 
 /// Force types apply forces to the particles in a [`System`], or alter their behavior in other ways
 ///
@@ -26,25 +18,47 @@ mod private {
 /// provide additional methods to further split their computations into multiple groups. Be aware
 /// that particular Platforms may place restrictions on the use of force groups, such as requiring
 /// all nonbonded forces to be in the same group.
-pub trait Force: private::Sealed {
+pub trait Force {
+    /// The underlying Force type
+    type CxxForce;
+
+    fn as_ref(&self) -> &Self::CxxForce;
+
+    fn as_mut(&mut self) -> &mut Self::CxxForce;
+
+    /// Convert the Force into a pointer to the underlying C++ Force class
+    /// 
+    /// # Safety:
+    /// 
+    /// The returned pointer should be allocated on the stack with the C++
+    /// new operator, and should "own" the allocated memory - ie, it should
+    /// not be aliased.
+    unsafe fn into_ptr(self) -> *mut Self::CxxForce where Self: Sized {
+        let mut self_mandrop = std::mem::ManuallyDrop::new(self);
+        self_mandrop.as_mut() as *mut Self::CxxForce
+    }
+
     /// Get the force group this `Force` belongs to
-    fn group(&self) -> usize {
-        let self_ptr: *const Self = self;
-        unsafe { openmm::Force_getForceGroup(self_ptr as *const openmm::Force) as usize }
+    fn group(&self) -> u8 {
+        let ptr = self.as_ref() as *const Self::CxxForce;
+        unsafe { openmm::OpenMM_Force_getForceGroup(ptr as *const openmm::OpenMM_Force) as u8 }
     }
     /// Set the force group this `Force` belongs to
     ///
     /// Valid groups are in the range 0..=31.
-    fn set_group(&mut self, group: usize) {
+    fn set_group(&mut self, group: u8) {
         if group > 31 {
             panic!("Force groups must be in the range 0..=31, not {}", group);
         }
 
-        let self_ptr: *mut Self = self;
-        unsafe { openmm::Force_setForceGroup(self_ptr as *mut openmm::Force, group as c_int) };
+        let ptr = self.as_mut() as *mut Self::CxxForce;
+        unsafe { openmm::OpenMM_Force_setForceGroup(ptr as *mut openmm::OpenMM_Force, group as c_int) };
     }
     /// Does this `Force` use Periodic Boundary Conditions
-    fn uses_pbc(&mut self) -> bool;
+    fn uses_pbc(&self) -> bool {
+        let ptr = self.as_ref() as *const Self::CxxForce;
+        unsafe { openmm::OpenMM_Force_usesPeriodicBoundaryConditions(ptr as *const openmm::OpenMM_Force) != 0 }
+    }
 
     // fn context_impl(&mut self, context: &mut Context) -> &mut ContextImpl {
     //     let self_ptr: *mut Self = self;

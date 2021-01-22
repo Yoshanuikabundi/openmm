@@ -14,8 +14,9 @@ links = "openmm"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cxx = "1.0"
+# cxx = "1.0"
 
 [build-dependencies]
 cmake = "0.1"
 bindgen = "0.56"
+# cxx-build = "1.0"

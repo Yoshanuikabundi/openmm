@@ -14,36 +14,48 @@
 // use cxx::{type_id, ExternType};
 
 pub mod c_bindings {
+    #[allow(
+        non_upper_case_globals,
+        non_camel_case_types,
+        non_snake_case,
+        dead_code,
+        improper_ctypes
+    )]
     mod bindings {
-        #![allow(
-            non_upper_case_globals,
-            non_camel_case_types,
-            non_snake_case,
-            dead_code,
-            improper_ctypes
-        )]
-
         include!(concat!(env!("OUT_DIR"), "/c_bindings.rs"));
     }
-
+    
     pub use bindings::root::*;
+
 }
 
 pub mod cpp_bindings {
+    #[allow(
+        non_upper_case_globals,
+        non_camel_case_types,
+        non_snake_case,
+        dead_code,
+        improper_ctypes
+    )]
     mod bindings {
-        #![allow(
-            non_upper_case_globals,
-            non_camel_case_types,
-            non_snake_case,
-            dead_code,
-            improper_ctypes
-        )]
 
         include!(concat!(env!("OUT_DIR"), "/cpp_bindings.rs"));
     }
 
     pub use bindings::root::OpenMM::*;
 }
+
+// #[cxx::bridge]
+// pub mod ffi {
+
+//     unsafe extern "C++" {
+//         include!("external/openmmapi/include/OpenMM.h");
+
+//         type Platform;
+
+//         fn findPlatform(kernel_names: Vec<String>) -> SharedPtr<Platform>;
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -52,7 +64,7 @@ mod tests {
     #[test]
     fn check_linked() {
         unsafe {
-            let mut sys = System::new();
+            let mut sys = cpp_bindings::System::new();
             let idx = sys.addParticle(1.008);
             assert_eq!(1.008, sys.getParticleMass(idx));
             sys.destruct();

@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use crate::preface::*;
-use openmm_bindings as openmm;
-use std::os::raw::c_int;
+use openmm_bindings::c_bindings as openmm;
+use std::ptr::NonNull;
 
 pub enum NonbondedMethod {
     /// A non-periodic cutoff scheme with a reaction field
@@ -47,28 +47,28 @@ impl Default for NonbondedMethod {
     }
 }
 
-impl Into<openmm::NonbondedForce_NonbondedMethod::Type> for NonbondedMethod {
-    fn into(self) -> openmm::NonbondedForce_NonbondedMethod::Type {
+impl Into<openmm::OpenMM_NonbondedForce_NonbondedMethod::Type> for NonbondedMethod {
+    fn into(self) -> openmm::OpenMM_NonbondedForce_NonbondedMethod::Type {
         match self {
-            Self::CutoffNonPeriodic => openmm::NonbondedForce_NonbondedMethod::CutoffNonPeriodic,
-            Self::CutoffPeriodic => openmm::NonbondedForce_NonbondedMethod::CutoffPeriodic,
-            Self::Ewald => openmm::NonbondedForce_NonbondedMethod::Ewald,
-            Self::LjPme => openmm::NonbondedForce_NonbondedMethod::LJPME,
-            Self::NoCutoff => openmm::NonbondedForce_NonbondedMethod::NoCutoff,
-            Self::Pme => openmm::NonbondedForce_NonbondedMethod::PME,
+            Self::CutoffNonPeriodic => openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_CutoffNonPeriodic,
+            Self::CutoffPeriodic => openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_CutoffPeriodic,
+            Self::Ewald => openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_Ewald,
+            Self::LjPme => openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_LJPME,
+            Self::NoCutoff => openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_NoCutoff,
+            Self::Pme => openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_PME,
         }
     }
 }
 
-impl From<openmm::NonbondedForce_NonbondedMethod::Type> for NonbondedMethod {
-    fn from(method: openmm::NonbondedForce_NonbondedMethod::Type) -> Self {
+impl From<openmm::OpenMM_NonbondedForce_NonbondedMethod::Type> for NonbondedMethod {
+    fn from(method: openmm::OpenMM_NonbondedForce_NonbondedMethod::Type) -> Self {
         match method {
-            openmm::NonbondedForce_NonbondedMethod::CutoffNonPeriodic => Self::CutoffNonPeriodic,
-            openmm::NonbondedForce_NonbondedMethod::CutoffPeriodic => Self::CutoffPeriodic,
-            openmm::NonbondedForce_NonbondedMethod::Ewald => Self::Ewald,
-            openmm::NonbondedForce_NonbondedMethod::LJPME => Self::LjPme,
-            openmm::NonbondedForce_NonbondedMethod::NoCutoff => Self::NoCutoff,
-            openmm::NonbondedForce_NonbondedMethod::PME => Self::Pme,
+            openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_CutoffNonPeriodic => Self::CutoffNonPeriodic,
+            openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_CutoffPeriodic => Self::CutoffPeriodic,
+            openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_Ewald => Self::Ewald,
+            openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_LJPME => Self::LjPme,
+            openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_NoCutoff => Self::NoCutoff,
+            openmm::OpenMM_NonbondedForce_NonbondedMethod::OpenMM_NonbondedForce_PME => Self::Pme,
             i => panic!("{} is not a valid nonbonded method", i),
         }
     }
@@ -138,15 +138,24 @@ impl From<openmm::NonbondedForce_NonbondedMethod::Type> for NonbondedMethod {
 ///
 /// [`add_particle()`]: Self::add_particle()
 pub struct NonbondedForce {
-    cxx_nbforce: openmm::NonbondedForce,
+    nbforce_ptr: NonNull<openmm::OpenMM_NonbondedForce>,
 }
 
 impl NonbondedForce {
     /// Create a new, unparametrised NonbondedForce
     pub fn new() -> Self {
-        let cxx_nbforce = unsafe { openmm::NonbondedForce::new() };
+        let ptr = unsafe { openmm::OpenMM_NonbondedForce_create() };
+        let nbforce_ptr = NonNull::new(ptr).expect("OpenMM_NonbondedForce returned null pointer");
 
-        Self { cxx_nbforce }
+        Self { nbforce_ptr }
+    }
+
+    fn as_ptr(& self) -> *const openmm::OpenMM_NonbondedForce {
+        self.nbforce_ptr.as_ptr()
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut openmm::OpenMM_NonbondedForce {
+        self.nbforce_ptr.as_ptr()
     }
 
     /// Add a particle with the given parameters
@@ -156,18 +165,18 @@ impl NonbondedForce {
     /// interaction between two particles, the arithmetic mean of the sigmas and the geometric mean
     /// of the epsilons for the two interacting particles is used (the Lorentz-Berthelot combining
     /// rule).
-    pub fn add_particle(&mut self, charge: f64, sigma: f64, epsilon: f64) -> usize {
-        unsafe { self.cxx_nbforce.addParticle(charge, sigma, epsilon) as usize }
+    pub fn add_particle(&mut self, charge: f64, sigma: f64, epsilon: f64) -> i32 {
+        unsafe { openmm::OpenMM_NonbondedForce_addParticle(self.as_mut_ptr(), charge, sigma, epsilon) as i32 }
     }
 
     /// Get the method used to compute the nonbonded forces
     pub fn method(&self) -> NonbondedMethod {
-        unsafe { self.cxx_nbforce.getNonbondedMethod().into() }
+        unsafe { openmm::OpenMM_NonbondedForce_getNonbondedMethod(self.as_ptr()).into() }
     }
 
     /// Set the method used to compute the nonbonded forces
     pub fn set_method(&mut self, method: NonbondedMethod) {
-        unsafe { self.cxx_nbforce.setNonbondedMethod(method.into()) }
+        unsafe { openmm::OpenMM_NonbondedForce_setNonbondedMethod(self.as_mut_ptr(), method.into()) }
     }
 }
 
@@ -178,15 +187,18 @@ impl Default for NonbondedForce {
 }
 
 impl Force for NonbondedForce {
-    fn uses_pbc(&mut self) -> bool {
-        match self.method() {
-            NonbondedMethod::CutoffNonPeriodic => false,
-            NonbondedMethod::CutoffPeriodic => true,
-            NonbondedMethod::Ewald => true,
-            NonbondedMethod::LjPme => true,
-            NonbondedMethod::NoCutoff => false,
-            NonbondedMethod::Pme => true,
-        }
+    type CxxForce = openmm::OpenMM_NonbondedForce;
+
+    fn as_ref(&self) -> &Self::CxxForce {
+        // SAFETY: self.nbforce_ptr is a non-null pointer to initialised, properly sized memory,
+        // and we are immutably borrowing it
+        unsafe { self.nbforce_ptr.as_ref() }
+    }
+
+    fn as_mut(&mut self) -> &mut Self::CxxForce {
+        // SAFETY: self.nbforce_ptr is a non-null pointer to initialised, properly sized memory,
+        // and we are mutably borrowing it
+        unsafe { self.nbforce_ptr.as_mut() }
     }
 }
 

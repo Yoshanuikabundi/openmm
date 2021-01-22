@@ -1,7 +1,10 @@
 #[allow(unused_imports)]
 use crate::preface::*;
-use openmm_bindings as openmm;
+use openmm_bindings::c_bindings as openmm;
 use std::os::raw::c_int;
+use std::ptr::NonNull;
+use std::marker::PhantomData;
+use std::convert::TryFrom;
 
 /// This type represents a molecular system. The definition of a `System` involves
 /// four elements:
@@ -24,24 +27,50 @@ use std::os::raw::c_int;
 /// [`add_particle()`]: Self::add_particle()
 /// [`add_force()`]: Self::add_force()
 pub struct System {
-    cxx_system: openmm::System,
+    ffi_system: NonNull<openmm::OpenMM_System>,
+    _system_marker: PhantomData<openmm::OpenMM_System>,
 }
 
 impl System {
     /// Create a new, empty system
     pub fn new() -> Self {
-        let cxx_system = unsafe { openmm::System::new() };
+        // SAFETY: OpenMM_System_create() returns a pointer to a new C System object
+        let ptr = unsafe { openmm::OpenMM_System_create() };
+        let ffi_system = NonNull::new(ptr).expect("OpenMM_System_create returned null pointer");
 
-        Self { cxx_system }
+        Self { ffi_system, _system_marker: PhantomData }
     }
 
-    /// Add a particle with the given mass (in AMU) to the system and return its index
-    pub fn add_particle(&mut self, mass: f64) -> usize {
-        unsafe { self.cxx_system.addParticle(mass) as usize }
+    /// Get a unique reference to the underlying system
+    fn as_mut(&mut self) -> &mut openmm::OpenMM_System {
+        // SAFETY: self.ffi_system is a unique non-null pointer to an initialized OpenMM_System,
+        // and we are mutably borrowing self
+        unsafe { self.ffi_system.as_mut() }
+    }
+
+    /// Get a shared reference to the underlying system
+    fn as_ref(&self) -> &openmm::OpenMM_System {
+        // SAFETY: self.ffi_system is a unique non-null pointer to an initialized OpenMM_System,
+        // and we are immutably borrowing self
+        unsafe { self.ffi_system.as_ref() } 
+    }
+
+    /// Add a particle with the given `mass` (in AMU) to the `System` and return its index.
+    /// 
+    /// If the mass is 0, integrators will ignore the particle and not modify its
+    /// position or velocity. This may be used for virtual sites or to prevent a particle
+    /// from moving.
+    pub fn add_particle(&mut self, mass: f64) -> i32 {
+        let idx = unsafe { openmm::OpenMM_System_addParticle(self.as_mut(), mass) };
+        i32::try_from(idx).expect("Index is not a valid i32")
     }
 
     /// Get the mass (in AMU) of the particle at the given index
-    pub fn particle_mass(&self, index: usize) -> f64 {
+    ///
+    /// If the mass is 0, Integrators will ignore the particle and not modify its position 
+    /// or velocity. This is most often used for virtual sites, but can also be used as a 
+    /// way to prevent a particle from moving.
+    pub fn particle_mass(&self, index: i32) -> f64 {
         if index >= self.num_particles() {
             panic!(
                 "Particle index out of bounds: num_particles is {} but the index is {}",
@@ -49,11 +78,18 @@ impl System {
                 index
             )
         }
-        unsafe { self.cxx_system.getParticleMass(index as c_int) }
+        let index = c_int::try_from(index).expect("Index is not a valid c_int");
+        // SAFETY: Index is in bounds (and this is double-checked in C++), and a simple double 
+        // is returned
+        unsafe { openmm::OpenMM_System_getParticleMass(self.as_ref(), index) }
     }
 
     /// Set the mass (in AMU) of the particle at the given index
-    pub fn set_particle_mass(&mut self, index: usize, mass: f64) {
+    /// 
+    /// If the mass is 0, Integrators will ignore the particle and not modify its position or 
+    /// velocity. This is most often used for virtual sites, but can also be used as a way to 
+    /// prevent a particle from moving.
+    pub fn set_particle_mass(&mut self, index: i32, mass: f64) {
         if index >= self.num_particles() {
             panic!(
                 "Particle index out of bounds: num_particles is {} but the index is {}",
@@ -61,18 +97,30 @@ impl System {
                 index
             )
         }
-        unsafe { self.cxx_system.setParticleMass(index as c_int, mass) }
+        let index = c_int::try_from(index).expect("Index is not a valid c_int");
+        // SAFETY: Index is in bounds (and this is double-checked in C++), and a simple double 
+        // is returned
+        unsafe { openmm::OpenMM_System_setParticleMass(self.as_mut(), index, mass) }
     }
 
     /// Get the number of particles in the System
-    pub fn num_particles(&self) -> usize {
-        unsafe { self.cxx_system.getNumParticles() as usize }
+    pub fn num_particles(&self) -> i32 {
+        // SAFETY: OpenMM_System_getNumParticles() does not mutate the target
+        let n = unsafe { openmm::OpenMM_System_getNumParticles(self.as_ref()) };
+        i32::try_from(n).expect("Number of particles is not a valid i32")
     }
 
     /// Add a force to the system
-    pub fn add_force(&mut self, force: Box<dyn Force>) -> usize {
-        let force_ptr = Box::into_raw(force);
-        unsafe { self.cxx_system.addForce(force_ptr as *mut openmm::Force) as usize }
+    pub fn add_force(&mut self, force: impl Force) -> i32 {
+        // SAFETY: self.ffi_system takes ownership of force, which should be heap-allocated,
+        // and drops it when ffi_system is dropped (in C++). The System is mutated, so 
+        // a mutable pointer is essential.
+        // Note: forces are freed in C++ with the delete operator, so must be allocated
+        // in C++ too, with the new operator
+        unsafe { 
+            let force_ptr = force.into_ptr() as *mut openmm::OpenMM_Force;
+            openmm::OpenMM_System_addForce(self.as_mut(), force_ptr) 
+        }
     }
 }
 
@@ -84,7 +132,7 @@ impl Default for System {
 
 impl Drop for System {
     fn drop(&mut self) {
-        unsafe { self.cxx_system.destruct() };
+        unsafe { openmm::OpenMM_System_destroy(self.ffi_system.as_ptr()) };
     }
 }
 
@@ -111,9 +159,10 @@ mod tests {
         assert_eq!(system.num_particles(), 1);
     }
 
+    #[test]
     fn test_force() {
         let mut system = System::new();
-        let force = Box::new(crate::force::NonbondedForce::new());
+        let force = crate::force::NonbondedForce::new();
 
         system.add_force(force);
 
